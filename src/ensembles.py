@@ -56,14 +56,15 @@ class RandomForestMSE:
             n_features = X.shape[1] // 3
         else:
             n_features = int(X.shape[1] * self.__feature_subsample_size)
+        hist = {
+            "time": [],
+            "train-loss": [],
+            "val-loss": []
+        }
         if not (X_val is None or y_val is None):
-            hist = {
-                "time": [],
-                "train-loss": [],
-                "val-loss": []
-            }
+            hist["val-loss"] = []
             prev_pred = np.zeros(X_val.shape[0])
-            prev_pred_train = np.zeros(X.shape[0])
+        prev_pred_train = np.zeros(X.shape[0])
         start = time.time()
         for i in range(self.__n_estimators):
             elements_indxes = np.random.choice(np.arange(0, X.shape[0]), size=X.shape[0], replace=True)
@@ -73,11 +74,11 @@ class RandomForestMSE:
             if not (X_val is None or y_val is None):
                 prev_pred = (prev_pred * i +
                              self.__estimators[i].predict(X_val[:, features_indxes])) / (i + 1)
-                prev_pred_train = (prev_pred_train * i +
-                                   self.__estimators[i].predict(X[:, features_indxes])) / (i + 1)
-                hist["time"].append(time.time() - start)
-                hist["train-loss"].append(rmse(y, prev_pred_train))
                 hist["val-loss"].append(rmse(y_val, prev_pred))
+            prev_pred_train = (prev_pred_train * i +
+                                self.__estimators[i].predict(X[:, features_indxes])) / (i + 1)
+            hist["time"].append(time.time() - start)
+            hist["train-loss"].append(rmse(y, prev_pred_train))
         if not (X_val is None or y_val is None):
             return hist
         return self
@@ -113,6 +114,9 @@ class RandomForestMSE:
 
 
 class GradientBoostingMSE:
+    """
+    Gradient boosting with MSE loss
+    """
     def __init__(
         self, n_estimators, learning_rate=0.1, max_depth=5, feature_subsample_size=None,
         **trees_parameters
@@ -154,12 +158,12 @@ class GradientBoostingMSE:
             n_features = X.shape[1] // 3
         else:
             n_features = int(X.shape[1] * self.__feature_subsample_size)
+        hist = {
+            "time": [],
+            "train-loss": []
+        }
         if not (X_val is None or y_val is None):
-            hist = {
-                "time": [],
-                "val-loss": [],
-                "train-loss": []
-            }
+            hist["val-loss"] = []
             pred_val = np.zeros(X_val.shape[0])
         preds = np.zeros(X.shape[0])
         start = time.time()
@@ -176,12 +180,10 @@ class GradientBoostingMSE:
             self.__features.append(features_indxes)
             if not (X_val is None or y_val is None):
                 pred_val += self.__lr * alpha * self.__estimators[i].predict(X_val[:, features_indxes])
-                hist["time"].append(time.time() - start)
                 hist["val-loss"].append(rmse(y_val, pred_val))
-                hist["train-loss"].append(rmse(y, preds))
-        if not (X_val is None or y_val is None):
-            return hist
-        return self
+            hist["time"].append(time.time() - start)
+            hist["train-loss"].append(rmse(y, preds))
+        return hist
 
     def predict(self, X):
         """
