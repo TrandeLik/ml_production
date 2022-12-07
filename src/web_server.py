@@ -3,6 +3,8 @@ from flask_bootstrap import Bootstrap
 from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 import pickle
+import pandas as pd
+import numpy as np
 from ensembles import RandomForestMSE, GradientBoostingMSE
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -20,6 +22,7 @@ class Model(db.Model):
     model_type = db.Column(db.String(10), nullable=False)
     description = db.Column(db.String(300))
     data_descr = db.Column(db.String(300))
+    is_fitted = db.Column(db.Boolean(), default=False)
 
     def __init__(self, name, model_type='bt', description=''):
         self.name = name
@@ -27,9 +30,21 @@ class Model(db.Model):
         self.model_type = model_type
         self.description = description
         self.data_descr = ''
+        self.is_fitted = False
 
     def __repr__(self):
         return str((self.name, self.model_type))
+
+    def fit(self, X_train, y_train, X_val, y_val, descr):
+        self.data_descr = descr
+        self.is_fitted = True
+        data = None
+        with open(os.path.join(models_directory, self.filename), "rb") as f:
+            data = pickle.load(f)
+        hist = data['model'].fit(X_train, y_train, X_val, y_val)
+        with open(os.path.join(models_directory, self.filename), "wb") as f:
+            pickle.dump({"model": data['model'], "hist": hist}, f)
+
 
 
 @app.route("/")
@@ -69,9 +84,7 @@ def add_model():
         model = Model.query.filter(Model.name == data["model_name"]).first()
         if model:
             return ["Error", "Модель с таким именем уже существует!"]
-        model = Model(data["model_name"],
-                      data["model_type"],
-                      data["model_descr"])
+        model = Model(data["model_name"], data["model_type"], data["model_descr"])
         md = None
         if data["model_type"] == 'bt':
             md = GradientBoostingMSE(data["model_est"], data["model_lr"],
@@ -80,7 +93,7 @@ def add_model():
             md = RandomForestMSE(data["model_est"], data["model_depth"], data["model_features"])
         if md:
             with open(os.path.join(models_directory, data["model_name"] + ".pickle"), "wb") as f:
-                pickle.dump({"model": md}, f)
+                pickle.dump({"model": md, "hist": None}, f)
         else:
             return ["Error", "Проверьте корректность введенных данных!"]
         db.session.add(model)
@@ -103,3 +116,38 @@ def delete_model():
         return ["OK"]
     except Exception:
         return ["Error", "Некорректный запрос на удаление!"]
+
+
+@app.route("/fit_model", methods=["POST"])
+def fit_model():
+    if 'target' not in request.form:
+        return ["Error", "Укажите целевую колонку!"]
+    target = request.form['target']
+    try:
+        data = pd.read_csv(request.files.get('train'))
+        y_train = np.array(data[target])
+        X_train = np.array(data.drop(labels=[target], axis=1))
+    except ValueError:
+        return ["Error", "Добавьте обучающую выборку!"]
+    except KeyError:
+        return ["Error", f"Колонка {target} отсутствует в обучающей выборке"]
+    X_val = None
+    y_val = None
+    if 'val' in request.files:
+        try:
+            val = pd.read_csv(request.files.get('val'))
+            y_val = np.array(val[target])
+            X_val = np.array(val.drop(labels=[target], axis=1))
+        except ValueError:
+            return ["Error", "Проверьте корректность валидационной выборки"]
+        except KeyError:
+            return ["Error", f"Колонка {target} отсутствует в вадидационной выборке"]
+    if 'model' not in request.form:
+        return ["Error", "Выберете модель, которую хотите обучить!"]
+    model = Model.query.filter(Model.name == request.form['model']).first()
+    if not model:
+        return ["Error", "Такой модели не существует!"]
+    model.fit(X_train, y_train, X_val, y_val, request.form['data_description'])
+    db.session.add(model)
+    db.session.commit()
+    return ["OK"]
