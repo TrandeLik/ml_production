@@ -76,10 +76,25 @@ function show_fit_model(name) {
      $('#modal').modal('show');
 }
 
-function show_predict_with_model(id) {
+function show_predict_with_model(name) {
     let title = document.getElementById("modal_label");
-    title.innerText = "Предсказать результаты";
-    $('#modal').modal('show');
+    title.innerText = "Получить предсказания";
+    let form = document.getElementById("modal_body");
+     form.innerHTML = `
+        <div class="form-group">
+            <label for="test_data" class="form-label">Файл с данными для предсказания</label>
+            <input class="form-control" type="file" id="test_data" accept=".csv">
+            <label for="column_name" class="form-label" style="margin-top: 1.5rem">Название колонки с предсказаниями</label>
+            <input type="text" id="column_name" class="form-control">
+            <p style="margin-top: 1.5rem">После нажатия кнопки "Предсказать" будет скачан файл с предсказаниями</p>
+        </div>
+     `;
+     let footer = document.getElementById("modal_footer");
+     footer.innerHTML = `
+       <button type="button" class="btn btn-success" onclick="predict('${name}')">Предсказать</button>
+       <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+    `;
+     $('#modal').modal('show');
 }
 
 function get_info_about_model(id) {
@@ -193,11 +208,43 @@ function fit_model(name) {
           if (response.data[0] === "Error") {
               show_message("Ошибка", response.data[1]);
           } else {
-              show_message("Успех", "Информацию об обучении теперь можно посмотреть по нажатию кнопки Подробнее");
+              show_message("Успех", `Информацию об обучении теперь можно посмотреть по нажатию кнопки "Подробнее"`);
           }
           get_all_models();
         }).catch(error => {
-            show_message("Ошибка", "Не удалось обучить модель");
+            show_message("Ошибка", "Не удалось обучить модель. Проверьте корректность введенных данных");
+    });
+}
+
+function predict(name) {
+    let data = new FormData();
+    let test = document.getElementById("test_data");
+    let column_name = document.getElementById("column_name");
+    data.append("test", test.files[0]);
+    data.append("model", name);
+    data.append("column_name", column_name.value);
+    axios.post("/predict", data, {
+         headers: {
+            "Content-Type": "multipart/form-data",
+         }})
+        .then(response => {
+          if (response.data[0] === "Error") {
+              show_message("Ошибка", response.data[1]);
+          } else {
+              console.log(response)
+              const url = window.URL.createObjectURL(new Blob([response.data]));
+              const link = document.createElement('a');
+              link.href = url;
+              link.setAttribute('download', `${name}_predictions.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+              URL.revokeObjectURL(url);
+              $('#modal').modal('hide');
+          }
+          get_all_models();
+        }).catch(error => {
+            show_message("Ошибка", "Не удалось получить предсказания. Проверьте корректность введенных данных");
     });
 }
 

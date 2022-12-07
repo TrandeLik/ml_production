@@ -1,10 +1,11 @@
 import os
-from flask_bootstrap import Bootstrap
-from flask import Flask, render_template, request
-from flask_sqlalchemy import SQLAlchemy
 import pickle
 import pandas as pd
 import numpy as np
+from flask_bootstrap import Bootstrap
+from flask import Flask, render_template, request
+from flask_sqlalchemy import SQLAlchemy
+import flask_excel as excel
 from ensembles import RandomForestMSE, GradientBoostingMSE
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -14,6 +15,7 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 Bootstrap(app)
 db = SQLAlchemy(app)
 models_directory = os.path.join(os.path.dirname(__file__), "instance/models")
+excel.init_excel(app)
 
 
 class Model(db.Model):
@@ -45,6 +47,11 @@ class Model(db.Model):
         with open(os.path.join(models_directory, self.filename), "wb") as f:
             pickle.dump({"model": data['model'], "hist": hist}, f)
 
+    def predict(self, X):
+        with open(os.path.join(models_directory, self.filename), "rb") as f:
+            data = pickle.load(f)
+            preds = data["model"].predict(X)
+        return preds
 
 
 @app.route("/")
@@ -120,34 +127,63 @@ def delete_model():
 
 @app.route("/fit_model", methods=["POST"])
 def fit_model():
-    if 'target' not in request.form:
-        return ["Error", "Укажите целевую колонку!"]
-    target = request.form['target']
     try:
-        data = pd.read_csv(request.files.get('train'))
-        y_train = np.array(data[target])
-        X_train = np.array(data.drop(labels=[target], axis=1))
-    except ValueError:
-        return ["Error", "Добавьте обучающую выборку!"]
-    except KeyError:
-        return ["Error", f"Колонка {target} отсутствует в обучающей выборке"]
-    X_val = None
-    y_val = None
-    if 'val' in request.files:
+        if 'target' not in request.form:
+            return ["Error", "Укажите целевую колонку!"]
+        target = request.form['target']
         try:
-            val = pd.read_csv(request.files.get('val'))
-            y_val = np.array(val[target])
-            X_val = np.array(val.drop(labels=[target], axis=1))
+            data = pd.read_csv(request.files.get('train'))
+            y_train = np.array(data[target])
+            X_train = np.array(data.drop(labels=[target], axis=1))
         except ValueError:
-            return ["Error", "Проверьте корректность валидационной выборки"]
+            return ["Error", "Добавьте обучающую выборку!"]
         except KeyError:
-            return ["Error", f"Колонка {target} отсутствует в вадидационной выборке"]
-    if 'model' not in request.form:
-        return ["Error", "Выберете модель, которую хотите обучить!"]
-    model = Model.query.filter(Model.name == request.form['model']).first()
-    if not model:
-        return ["Error", "Такой модели не существует!"]
-    model.fit(X_train, y_train, X_val, y_val, request.form['data_description'])
-    db.session.add(model)
-    db.session.commit()
-    return ["OK"]
+            return ["Error", f"Колонка {target} с таргетом отсутствует в обучающей выборке"]
+        X_val = None
+        y_val = None
+        if 'val' in request.files:
+            try:
+                val = pd.read_csv(request.files.get('val'))
+                y_val = np.array(val[target])
+                X_val = np.array(val.drop(labels=[target], axis=1))
+            except ValueError:
+                return ["Error", "Проверьте корректность валидационной выборки"]
+            except KeyError:
+                return ["Error", f"Колонка {target} отсутствует в вадидационной выборке"]
+        if 'model' not in request.form:
+            return ["Error", "Выберете модель, которую хотите обучить!"]
+        model = Model.query.filter(Model.name == request.form['model']).first()
+        if not model:
+            return ["Error", "Такой модели не существует!"]
+        model.fit(X_train, y_train, X_val, y_val, request.form['data_description'])
+        db.session.add(model)
+        db.session.commit()
+        return ["OK"]
+    except Exception:
+        return ["Error", "Не удалось обучить модель. Проверьте корректность введенных данных"]
+
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    try:
+        try:
+            data = pd.read_csv(request.files.get('test'))
+            X_test = np.array(data)
+        except ValueError:
+            return ["Error", "Добавьте данные для предсказания!"]
+        if 'model' not in request.form:
+            return ["Error", "Выберете модель, с помощью которой хотите получить предсказания!"]
+        if 'column_name' not in request.form:
+            return ["Error", "Укажите название колонки!"]
+        model = Model.query.filter(Model.name == request.form['model']).first()
+        if not model:
+            return ["Error", "Такой модели не существует!"]
+        try:
+            preds = model.predict(X_test)
+        except Exception:
+            return ["Error", "Неправильный формат данных, убедитесь, что они соответствуют данным, на которых обучалась модель "]
+        filename = request.form['model'] + "_predictions.csv"
+        data = {request.form['column_name']: list(preds)}
+        return excel.make_response_from_dict(data, file_type="csv", file_name=filename)
+    except Exception:
+       return ["Error", "Не удалось получить предсказания. Проверьте корректность введенных данных"]
