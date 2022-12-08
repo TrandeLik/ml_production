@@ -136,7 +136,8 @@ function get_info_about_model(name) {
                 }
                 if (info.hasOwnProperty("plot")) {
                     form.innerHTML += `<div class="col-12" id="div-plot"></div>`;
-                    console.log(JSON.parse(info.plot));
+                    let config={'toImageButtonOptions': {'format': 'svg'}}
+                    Plotly.setPlotConfig(config);
                     Plotly.newPlot('div-plot', JSON.parse(info.plot), {});
                 }
             }

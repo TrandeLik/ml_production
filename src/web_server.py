@@ -10,6 +10,7 @@ import plotly
 import plotly.graph_objs as go
 import plotly.express as px
 
+
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['BOOTSTRAP_SERVE_LOCAL'] = True
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite'
