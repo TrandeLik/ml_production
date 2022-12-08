@@ -2,20 +2,51 @@ import os
 import pickle
 import pandas as pd
 import numpy as np
-from flask_bootstrap import Bootstrap
 from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 import flask_excel as excel
 from ensembles import RandomForestMSE, GradientBoostingMSE
+import plotly
+import plotly.graph_objs as go
+import plotly.express as px
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
 app.config['BOOTSTRAP_SERVE_LOCAL'] = True
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.sqlite'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-Bootstrap(app)
 db = SQLAlchemy(app)
 models_directory = os.path.join(os.path.dirname(__file__), "instance/models")
 excel.init_excel(app)
+
+
+def build_plot(hist):
+    fig = go.Figure()
+    iters = np.arange(len(hist['train-loss']), dtype=int)
+    fig.add_trace(go.Scatter(x=iters, y=hist['train-loss'],
+                             mode="lines+markers", name="MSE на обучающей выборке"))
+    if 'val-loss' in hist:
+        fig.add_trace(go.Scatter(x=iters, y=hist['val-loss'],
+                                 mode="lines+markers", name="MSE на валидационной выборке"))
+    fig.update_layout(
+                      showlegend=True,
+                      legend=dict(x=.5, xanchor="center"),
+                      title={
+                          'text': "Процесс обучения модели",
+                          'x': 0.5,
+                          'xanchor': 'center',
+                          'font': {'size': 22}
+                      },
+                      xaxis_title={
+                          'text': "Номер итерации",
+                          'font': {'size': 18}
+                      },
+                      yaxis_title={
+                          'text': "MSE",
+                          'font': {'size': 18}
+                      },
+                      margin=dict(l=0, r=0, t=30, b=0))
+    fig.update_traces(hoverinfo="all", hovertemplate="Итерация: %{x}<br> MSE: %{y}")
+    return fig.to_json()
 
 
 class Model(db.Model):
@@ -52,6 +83,21 @@ class Model(db.Model):
             data = pickle.load(f)
             preds = data["model"].predict(X)
         return preds
+
+    def get_information(self):
+        result = {
+            'name': self.name,
+            'model_type': self.model_type,
+            'descr': self.description,
+            'is_fitted': self.is_fitted,
+            'data_descr': self.data_descr
+        }
+        with open(os.path.join(models_directory, self.filename), "rb") as f:
+            data = pickle.load(f)
+            if self.is_fitted:
+                result['plot'] = build_plot(data['hist'])
+            result['params'] = data['model'].get_params(deep=False)
+        return result
 
 
 @app.route("/")
@@ -178,12 +224,28 @@ def predict():
         model = Model.query.filter(Model.name == request.form['model']).first()
         if not model:
             return ["Error", "Такой модели не существует!"]
+        if not model.is_fitted:
+            return ["Error", "Модель еще не обучена!"]
         try:
             preds = model.predict(X_test)
         except Exception:
-            return ["Error", "Неправильный формат данных, убедитесь, что они соответствуют данным, на которых обучалась модель "]
+            return ["Error",
+                    "Неправильный формат данных, убедитесь, что они соответствуют данным, на которых обучалась модель "]
         filename = request.form['model'] + "_predictions.csv"
         data = {request.form['column_name']: list(preds)}
         return excel.make_response_from_dict(data, file_type="csv", file_name=filename)
     except Exception:
-       return ["Error", "Не удалось получить предсказания. Проверьте корректность введенных данных"]
+        return ["Error", "Не удалось получить предсказания. Проверьте корректность введенных данных"]
+
+
+@app.route("/get_info_about_model", methods=["GET"])
+def get_info_about_model():
+    try:
+        name = request.args.get('model_name')
+        model = Model.query.filter(Model.name == name).first()
+        if not model:
+            return ["Error", "Модели с таким именем не существует!"]
+        data = model.get_information()
+        return ["OK", data]
+    except Exception:
+        return ["Error", "Некорректный запрос на получение информации о модели!"]

@@ -19,7 +19,7 @@ add_model_show.onclick = function () {
             <label for="model_estimators" style="margin-top: 1rem" class="form-label">Количество деревьев</label>
             <small class="form-text text-muted">Ничего не вводите для 100 деревьев</small>
             <input type="number" class="form-control" id="model_estimators" min="1">
-            <label for="model_depth" style="margin-top: 1rem" class="form-label">Глубина деревьев</label>
+            <label for="model_depth" style="margin-top: 1rem" class="form-label">Максимальная глубина деревьев</label>
             <input type="number" class="form-control" id="model_depth" min="1">
             <small class="form-text text-muted">Ничего не вводите для неограниченной глубины</small>
             <label for="model_features" style="margin-top: 1rem" class="form-label">Размер признакового пространства для каждого дерева</label>
@@ -97,9 +97,57 @@ function show_predict_with_model(name) {
      $('#modal').modal('show');
 }
 
-function get_info_about_model(id) {
+function get_info_about_model(name) {
     let title = document.getElementById("modal_label");
     title.innerText = "Информация о модели";
+        axios.get(`/get_info_about_model?model_name=${name}`)
+        .then(response => {
+            if (response.data[0] === "Error") {
+                show_message("Ошибка", response.data[1]);
+            } else {
+                let info = response.data[1]
+                let form = document.getElementById("modal_body");
+                form.innerHTML = `<p><strong>Название: </strong>${info.name}</p>`;
+                form.innerHTML += `<p><strong>Тип модели: </strong>
+                        ${info.model_type === "bt" ? "градиентный бустинг": "случайный лес"}</p>`;
+                if (info.descr !== "") {
+                    form.innerHTML += `<p><strong>Описание модели: </strong>${info.descr}</p>`;
+                }
+                let params = info.params;
+                form.innerHTML += `
+                    <p><strong>Количество деревьев: </strong>${params.n_estimators}</p>
+                    <p><strong>Максимальная глубина деревьев: </strong>
+                        ${params.max_depth ? params.max_depth : "не ограничена"}</p>
+                    <p><strong>Размер признакового пространства для каждого дерева: </strong>
+                        ${params.feature_subsample_size ? params.feature_subsample_size : "1/3"}</p>
+                `;
+                if (info.model_type === "bt") {
+                    form.innerHTML += `<p><strong>Learning rate: </strong>${params.learning_rate}</p>`;
+                }
+                form.innerHTML += `<p><strong style="color: ${info.is_fitted ? "#76b45a" : "#f5554a"}">
+                                        ${info.is_fitted ? "Модель обучена": "Модель не обучена"}
+                                    </strong></p>`;
+                if (info.is_fitted) {
+                    if (info.data_descr !== "") {
+                        form.innerHTML += `<p><strong>Описание данных: </strong>${info.data_descr}</p>`;
+                    } else {
+                        form.innerHTML += `<p><strong style="color: orange">Описание данных не предоставлено</strong></p>`;
+                    }
+                }
+                if (info.hasOwnProperty("plot")) {
+                    form.innerHTML += `<div class="col-12" id="div-plot"></div>`;
+                    console.log(JSON.parse(info.plot));
+                    Plotly.newPlot('div-plot', JSON.parse(info.plot), {});
+                }
+            }
+            get_all_models();
+        }).catch(error => {
+            show_message("Ошибка", "Что-то пошло не так, попробуйте получить информацию о модели еще раз!");
+    });
+    let footer = document.getElementById("modal_footer");
+    footer.innerHTML = `
+      <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
+    `;
     $('#modal').modal('show');
 }
 
