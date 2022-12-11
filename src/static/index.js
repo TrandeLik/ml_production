@@ -35,8 +35,8 @@ add_model_show.onclick = function () {
        <button type="button" class="btn btn-success" onclick="create_model()">Создать</button>
        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
     `;
-     $('#modal').modal('show');
-}
+     $("#modal").modal("show");
+};
 
 function show_message(title_text, message) {
     let title = document.getElementById("modal_label");
@@ -47,7 +47,7 @@ function show_message(title_text, message) {
     footer.innerHTML = `
         <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
     `;
-    $('#modal').modal('show');
+    $("#modal").modal("show");
 }
 
 function show_fit_model(name) {
@@ -64,7 +64,7 @@ function show_fit_model(name) {
             <label for="train_data" class="form-label" style="margin-top: 1rem">Название колонки с целевой переменной</label>
             <input class="form-control" type="text" id="target_column">
             <label for="train_data" class="form-label" style="margin-top: 1rem">Описание данных</label>
-            <textarea class="form-control" id="data_description" maxlength='300'></textarea>
+            <textarea class="form-control" id="data_description" maxlength="300"></textarea>
             <p style="margin-top: 1.5rem">После нажатия кнопки "Обучить" дождитесь появления сообщения об окончании обучения</p>
         </div>
      `;
@@ -73,7 +73,7 @@ function show_fit_model(name) {
        <button type="button" class="btn btn-warning" onclick="fit_model('${name}')">Обучить</button>
        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
     `;
-     $('#modal').modal('show');
+     $("#modal").modal("show");
 }
 
 function show_predict_with_model(name) {
@@ -94,7 +94,7 @@ function show_predict_with_model(name) {
        <button type="button" class="btn btn-success" onclick="predict('${name}')">Предсказать</button>
        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
     `;
-     $('#modal').modal('show');
+     $("#modal").modal("show");
 }
 
 function get_info_about_model(name) {
@@ -105,7 +105,7 @@ function get_info_about_model(name) {
             if (response.data[0] === "Error") {
                 show_message("Ошибка", response.data[1]);
             } else {
-                let info = response.data[1]
+                let info = response.data[1];
                 let form = document.getElementById("modal_body");
                 form.innerHTML = `<p><strong>Название: </strong>${info.name}</p>`;
                 form.innerHTML += `<p><strong>Тип модели: </strong>
@@ -136,9 +136,9 @@ function get_info_about_model(name) {
                 }
                 if (info.hasOwnProperty("plot")) {
                     form.innerHTML += `<div class="col-12" id="div-plot"></div>`;
-                    let config={'toImageButtonOptions': {'format': 'svg'}}
+                    let config={"toImageButtonOptions": {"format": "svg"}}
                     Plotly.setPlotConfig(config);
-                    Plotly.newPlot('div-plot', JSON.parse(info.plot), {});
+                    Plotly.newPlot("div-plot", JSON.parse(info.plot), {});
                 }
             }
             get_all_models();
@@ -149,11 +149,11 @@ function get_info_about_model(name) {
     footer.innerHTML = `
       <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Закрыть</button>
     `;
-    $('#modal').modal('show');
+    $("#modal").modal("show");
 }
 
 function create_table(data) {
-    let table = document.getElementById('tbl');
+    let table = document.getElementById("tbl");
      table.innerHTML = `
         <thead>
         <tr class="table_header">
@@ -167,11 +167,11 @@ function create_table(data) {
         <tbody>
     `;
      for (let j = 0; j < data.length; ++j) {
-         let md_type = '';
-         if (data[j][1] === 'bt') {
-             md_type = 'Градиентный бустинг';
-         } else if (data[j][1] === 'rf') {
-             md_type = 'Случайный лес';
+         let md_type = "";
+         if (data[j][1] === "bt") {
+             md_type = "Градиентный бустинг";
+         } else if (data[j][1] === "rf") {
+             md_type = "Случайный лес";
          } else {
              continue;
          }
@@ -189,11 +189,11 @@ function create_table(data) {
          </tr>
         `;
      }
-     table.innerHTML += '</tbody>';
+     table.innerHTML += "</tbody>";
 }
 
 function get_all_models() {
-    axios.get('/get_all_models')
+    axios.get("/get_all_models")
         .then(response => {
             create_table(response.data);
         });
@@ -207,7 +207,7 @@ function create_model() {
     let md_depth = document.getElementById("model_depth").value;
     let md_features = document.getElementById("model_features").value;
     let md_lr = document.getElementById("model_lr").value;
-    axios.post('/add_model', {model_type: md_type,
+    axios.post("/add_model", {model_type: md_type,
                                  model_name: md_name,
                                  model_descr: md_descr,
                                  model_est: md_estimators,
@@ -218,7 +218,7 @@ function create_model() {
            if (response.data[0] === "Error") {
                show_message("Ошибка", response.data[1]);
            } else {
-               $('#modal').modal('hide');
+               $("#modal").modal("hide");
            }
         get_all_models();
         }).catch(error => {
@@ -282,14 +282,14 @@ function predict(name) {
           } else {
               console.log(response)
               const url = window.URL.createObjectURL(new Blob([response.data]));
-              const link = document.createElement('a');
+              const link = document.createElement("a");
               link.href = url;
-              link.setAttribute('download', `${name}_predictions.csv`);
+              link.setAttribute("download", `${name}_predictions.csv`);
               document.body.appendChild(link);
               link.click();
               document.body.removeChild(link);
               URL.revokeObjectURL(url);
-              $('#modal').modal('hide');
+              $("#modal").modal("hide");
           }
           get_all_models();
         }).catch(error => {

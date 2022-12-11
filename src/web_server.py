@@ -5,10 +5,8 @@ import numpy as np
 from flask import Flask, render_template, request
 from flask_sqlalchemy import SQLAlchemy
 import flask_excel as excel
-from ensembles import RandomForestMSE, GradientBoostingMSE
-import plotly
 import plotly.graph_objs as go
-import plotly.express as px
+from ensembles import RandomForestMSE, GradientBoostingMSE
 
 
 app = Flask(__name__, template_folder='templates', static_folder='static')
@@ -21,6 +19,9 @@ excel.init_excel(app)
 
 
 def build_plot(hist):
+    """
+    Plot model fitting process
+    """
     fig = go.Figure()
     iters = np.arange(len(hist['train-loss']), dtype=int)
     fig.add_trace(go.Scatter(x=iters, y=hist['train-loss'],
@@ -51,6 +52,9 @@ def build_plot(hist):
 
 
 class Model(db.Model):
+    """
+    Class for model representation
+    """
     name = db.Column(db.String(80), primary_key=True)
     filename = db.Column(db.String(85), primary_key=True)
     model_type = db.Column(db.String(10), nullable=False)
@@ -59,6 +63,9 @@ class Model(db.Model):
     is_fitted = db.Column(db.Boolean(), default=False)
 
     def __init__(self, name, model_type='bt', description=''):
+        """
+        Model initiation
+        """
         self.name = name
         self.filename = name + '.pickle'
         self.model_type = model_type
@@ -67,9 +74,13 @@ class Model(db.Model):
         self.is_fitted = False
 
     def __repr__(self):
+        """Model representation: name and type (rf for RandomForest and bt for GradientBoosting"""
         return str((self.name, self.model_type))
 
     def fit(self, X_train, y_train, X_val, y_val, descr):
+        """
+        Model fitting and saving results of it
+        """
         self.data_descr = descr
         self.is_fitted = True
         data = None
@@ -80,12 +91,18 @@ class Model(db.Model):
             pickle.dump({"model": data['model'], "hist": hist}, f)
 
     def predict(self, X):
+        """
+        Making predictions with fitted model
+        """
         with open(os.path.join(models_directory, self.filename), "rb") as f:
             data = pickle.load(f)
             preds = data["model"].predict(X)
         return preds
 
     def get_information(self):
+        """
+        Returns all information about model
+        """
         result = {
             'name': self.name,
             'model_type': self.model_type,
@@ -103,11 +120,17 @@ class Model(db.Model):
 
 @app.route("/")
 def start_page():
+    """
+    Returns main page of the application
+    """
     return render_template("index.html")
 
 
 @app.route("/get_all_models", methods=["GET"])
 def get_all_models():
+    """
+    Returns all information about given model
+    """
     req = Model.query.all()
     result = []
     for md in req:
@@ -117,8 +140,11 @@ def get_all_models():
 
 @app.route("/add_model", methods=["POST"])
 def add_model():
+    """
+    Model creation with data given in request
+    """
     try:
-        data = eval(request.data)
+        data = request.json
         if not data["model_est"]:
             data["model_est"] = 100
         else:
@@ -161,12 +187,15 @@ def add_model():
         db.session.add(model)
         db.session.commit()
         return ["OK"]
-    except Exception:
+    except (ValueError, TypeError, RuntimeError):
         return ["Error", "Проверьте корректность введенных данных!"]
 
 
 @app.route("/delete_model", methods=["GET"])
 def delete_model():
+    """
+    Model deletion from application
+    """
     try:
         name = request.args.get('model_name')
         model = Model.query.filter(Model.name == name).first()
@@ -176,12 +205,15 @@ def delete_model():
         db.session.delete(model)
         db.session.commit()
         return ["OK"]
-    except Exception:
+    except (ValueError, TypeError, RuntimeError):
         return ["Error", "Некорректный запрос на удаление!"]
 
 
 @app.route("/fit_model", methods=["POST"])
 def fit_model():
+    """
+    Model fitting with data given in request
+    """
     try:
         if 'target' not in request.form:
             return ["Error", "Укажите целевую колонку!"]
@@ -214,12 +246,15 @@ def fit_model():
         db.session.add(model)
         db.session.commit()
         return ["OK"]
-    except Exception:
+    except (ValueError, TypeError, RuntimeError):
         return ["Error", "Не удалось обучить модель. Проверьте корректность введенных данных"]
 
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    """
+    Making prediction to the given data
+    """
     try:
         try:
             data = pd.read_csv(request.files.get('test'))
@@ -237,18 +272,21 @@ def predict():
             return ["Error", "Модель еще не обучена!"]
         try:
             preds = model.predict(X_test)
-        except Exception:
+        except (ValueError, TypeError, RuntimeError):
             return ["Error",
                     "Неправильный формат данных, убедитесь, что они соответствуют данным, на которых обучалась модель "]
         filename = request.form['model'] + "_predictions.csv"
         data = {request.form['column_name']: list(preds)}
         return excel.make_response_from_dict(data, file_type="csv", file_name=filename)
-    except Exception:
+    except (ValueError, TypeError, RuntimeError):
         return ["Error", "Не удалось получить предсказания. Проверьте корректность введенных данных"]
 
 
 @app.route("/get_info_about_model", methods=["GET"])
 def get_info_about_model():
+    """
+    Returns model params and plot of the fitting
+    """
     try:
         name = request.args.get('model_name')
         model = Model.query.filter(Model.name == name).first()
@@ -256,5 +294,5 @@ def get_info_about_model():
             return ["Error", "Модели с таким именем не существует!"]
         data = model.get_information()
         return ["OK", data]
-    except Exception:
+    except (ValueError, TypeError, RuntimeError):
         return ["Error", "Некорректный запрос на получение информации о модели!"]
