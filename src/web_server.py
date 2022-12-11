@@ -123,18 +123,26 @@ def add_model():
             data["model_est"] = 100
         else:
             data["model_est"] = int(data["model_est"])
+            if data["model_est"] <= 0:
+                return ["Error", "Число моделей должно быть положительным числом!"]
         if not data["model_depth"]:
             data["model_depth"] = None
         else:
             data["model_depth"] = int(data["model_depth"])
+            if data["model_depth"] <= 0:
+                return ["Error", "Глубина деревьев должна быть положительным числом!"]
         if not data["model_features"]:
             data["model_features"] = None
         else:
             data["model_features"] = float(data["model_features"])
+            if data["model_features"] > 1 or data["model_features"] <= 0:
+                return ["Error", "Размерность признаков не может быть больше 1 или меньше или равной 0!"]
         if not data["model_lr"]:
             data["model_lr"] = 0.1
         else:
             data["model_lr"] = float(data["model_lr"])
+            if data["model_lr"] <= 0:
+                return ["Error", "Learning rate должен быть положительным числом!"]
         model = Model.query.filter(Model.name == data["model_name"]).first()
         if model:
             return ["Error", "Модель с таким именем уже существует!"]
