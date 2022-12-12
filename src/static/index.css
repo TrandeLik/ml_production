@@ -1,0 +1,136 @@
+body {
+    background: ghostwhite;
+    height: 100vh;
+    font-size: 1.2rem;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+td {
+    text-align: center;
+    vertical-align: middle;
+}
+
+th {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.table_header {
+    background: navajowhite;
+}
+
+.add_model {
+    margin-top: 2.5rem !important;
+    margin-bottom: 2rem;
+    font-size: 1.5rem;
+}
+
+.table_row {
+    background-color: #fff3e8;
+}
+
+.table_row:hover {
+    background-color: #ffefdf;
+}
+
+.btn {
+    font-size: 1.2rem;
+    margin-top: 0.5rem;
+}
+
+.btn-warning {
+    background-color: #ffd966;
+    border-color: #ffd966;
+    color: black;
+}
+
+.btn-warning:focus {
+    background-color: #ffd34d;
+    border-color: #ffd34d;
+}
+
+.btn-warning:hover {
+    background-color: #ffd34d;
+    border-color: #ffd34d;
+}
+
+.btn-warning:not(:disabled):not(.disabled):active {
+    background-color: #ffd34d;
+    border-color: #ffd34d;
+}
+
+.btn-danger {
+    background-color: #f6685e;
+    border-color: #f6685e;
+    color: black;
+}
+
+.btn-danger:focus {
+    background-color: #f5554a;
+    border-color: #f5554a;
+    color: black;
+}
+
+.btn-danger:hover {
+    background-color: #f5554a;
+    border-color: #f5554a;
+    color: black;
+}
+
+.btn-danger:not(:disabled):not(.disabled):active {
+    background-color: #f5554a;
+    border-color: #f5554a;
+    color: black;
+}
+
+.btn-success {
+    background-color: #84bc6b;
+    border-color: #84bc6b;
+    color: black;
+}
+
+.btn-success:focus {
+    background-color: #76b45a;
+    border-color: #76b45a;
+    color: black;
+}
+
+.btn-success:hover {
+    background-color: #76b45a;
+    border-color: #76b45a;
+    color: black;
+}
+
+
+.btn-success:not(:disabled):not(.disabled):active {
+    background-color: #76b45a;
+    border-color: #76b45a;
+    color: black;
+}
+
+.btn-primary {
+    background-color: #668cff;
+    border-color: #668cff;
+    color: ghostwhite;
+}
+
+.btn-primary:focus {
+    background-color: #4d79ff;
+    border-color: #4d79ff;
+    color: ghostwhite;
+}
+
+.btn-primary:hover {
+    background-color: #4d79ff;
+    border-color: #4d79ff;
+    color: ghostwhite;
+}
+
+.btn-primary:not(:disabled):not(.disabled):active {
+    background-color: #4d79ff;
+    border-color: #4d79ff;
+    color: ghostwhite;
+}
