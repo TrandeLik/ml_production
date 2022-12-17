@@ -25,10 +25,10 @@ def build_plot(hist):
     fig = go.Figure()
     iters = np.arange(len(hist['train-loss']), dtype=int)
     fig.add_trace(go.Scatter(x=iters, y=hist['train-loss'],
-                             mode="lines+markers", name="MSE на обучающей выборке"))
+                             mode="lines+markers", name="RMSE на обучающей выборке"))
     if 'val-loss' in hist:
         fig.add_trace(go.Scatter(x=iters, y=hist['val-loss'],
-                                 mode="lines+markers", name="MSE на валидационной выборке"))
+                                 mode="lines+markers", name="RMSE на валидационной выборке"))
     fig.update_layout(
                       showlegend=True,
                       legend=dict(x=.5, xanchor="center"),
@@ -43,11 +43,11 @@ def build_plot(hist):
                           'font': {'size': 18}
                       },
                       yaxis_title={
-                          'text': "MSE",
+                          'text': "RMSE",
                           'font': {'size': 18}
                       },
                       margin=dict(l=0, r=0, t=30, b=0))
-    fig.update_traces(hoverinfo="all", hovertemplate="Итерация: %{x}<br> MSE: %{y}")
+    fig.update_traces(hoverinfo="all", hovertemplate="Итерация: %{x}<br> RMSE: %{y}")
     return fig.to_json()
 
 
